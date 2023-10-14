@@ -1,0 +1,80 @@
+import nltk
+import numpy as np
+import random
+import string
+
+# Install NLTK data if not already installed
+nltk.download('punkt')
+nltk.download('wordnet')
+
+from nltk.corpus import wordnet
+from nltk.stem import WordNetLemmatizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Reading and preprocessing your corpus data
+with open('corpus.txt', 'r', encoding='utf-8') as f:
+    corpus = f.read().lower()
+
+# Tokenization
+sent_tokens = nltk.sent_tokenize(corpus)
+word_tokens = nltk.word_tokenize(corpus)
+
+# Lemmatization
+lemmer = WordNetLemmatizer()
+
+def LemTokens(tokens):
+    return [lemmer.lemmatize(token) for token in tokens]
+
+remove_punct_dict = dict((ord(punct), None) for punct in string.punctuation)
+
+def LemNormalize(text):
+    return LemTokens(nltk.word_tokenize(text.lower().translate(remove_punct_dict)))
+
+# Greeting responses
+GREETING_INPUTS = ["hello", "hi", "greetings", "sup", "what's up", "hey"]
+GREETING_RESPONSES = ["hi", "hey", "hi there", "hello", "I'm glad you're talking to me"]
+
+def greeting_response(text):
+    for word in text.split():
+        if word.lower() in GREETING_INPUTS:
+            return random.choice(GREETING_RESPONSES)
+
+# Generating responses
+def response(user_response):
+    bot_response = ''
+    sent_tokens.append(user_response)
+    TfidfVec = TfidfVectorizer(tokenizer=LemNormalize, stop_words='english')
+    tfidf = TfidfVec.fit_transform(sent_tokens)
+    vals = cosine_similarity(tfidf[-1], tfidf)
+    idx = vals.argsort()[0][-2]
+    flat = vals.flatten()
+    flat.sort()
+    req_tfidf = flat[-2]
+    if req_tfidf == 0:
+        bot_response = bot_response + "I am sorry! I don't understand you"
+        return bot_response
+    else:
+        bot_response = bot_response + sent_tokens[idx]
+        return bot_response
+
+# Chat
+flag = True
+print("Bot: My name is Bot. I will answer your queries about Chatbots. If you want to exit, type 'bye'.")
+while flag:
+    user_response = input("You: ")
+    user_response = user_response.lower()
+    if user_response != 'bye':
+        if user_response == 'thanks' or user_response == 'thank you':
+            flag = False
+            print("Bot: You're welcome!")
+        else:
+            if greeting_response(user_response) is not None:
+                print("Bot: " + greeting_response(user_response))
+            else:
+                print("Bot: ", end="")
+                print(response(user_response))
+                sent_tokens.remove(user_response)
+    else:
+        flag = False
+        print("Bot: Bye! Take care.")
